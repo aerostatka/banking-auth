@@ -3,7 +3,8 @@ package domain
 import "github.com/aerostatka/banking-lib/errs"
 
 type AuthRepository interface {
-	FindBy(string, string) (*Login, *errs.AppError)
+	FindBy(user string, pass string) (*Login, *errs.AppError)
+	GenerateAndSaveRefreshToken(authToken *AuthToken) (string, *errs.AppError)
 }
 
 type AuthorizationRequest struct {

@@ -26,14 +26,21 @@ func (s DefaultAuthService) Login(req dto.LoginRequest) (*dto.LoginResponse, *er
 		return nil, err
 	}
 
-	token, err := login.GenerateToken()
+	claims := login.ClaimsForAccessToken()
 
-	if err != nil {
-		return nil, err
+	authToken := domain.NewAuthToken(claims)
+	signedToken, appErr := authToken.NewAccessToken()
+	if appErr != nil {
+		return nil, errs.NewInternalServerError("Error during token generation")
 	}
 
+	refreshToken, appErr := s.repo.GenerateAndSaveRefreshToken(authToken)
+	if appErr != nil {
+		return nil, errs.NewInternalServerError("Unable to generate refresh token")
+	}
 	return &dto.LoginResponse{
-		Token: *token,
+		AccessToken:  signedToken,
+		RefreshToken: refreshToken,
 	}, nil
 }
 
@@ -41,7 +48,7 @@ func (s DefaultAuthService) Verify(params map[string]string) *errs.AppError {
 	if jwtToken, err := jwtTokenFromString(params["token"]); err != nil {
 		logger.Error("Something went wrong: " + err.Error())
 
-		return errs.NewInternalServerError("Token is not valid")
+		return errs.NewInternalServerError("AccessToken is not valid")
 	} else {
 		if jwtToken.Valid {
 			claims := jwtToken.Claims.(*domain.Claims)
@@ -57,7 +64,7 @@ func (s DefaultAuthService) Verify(params map[string]string) *errs.AppError {
 
 			return nil
 		} else {
-			return errs.NewUnauthorizedError("Token is not valid")
+			return errs.NewUnauthorizedError("AccessToken is not valid")
 		}
 	}
 }

@@ -38,3 +38,22 @@ GROUP BY u.customer_id`
 
 	return &login, nil
 }
+
+func (r AuthRepositoryDb) GenerateAndSaveRefreshToken(authToken *AuthToken) (string, *errs.AppError) {
+	refreshToken, appErr := authToken.newRefreshToken()
+
+	if appErr != nil {
+		return "", appErr
+	}
+
+	sqlInsert := "INSERT INTO `refresh_token_store`(refresh_token) VALUES(?)"
+	_, err := r.client.Exec(sqlInsert, refreshToken)
+
+	if err != nil {
+		logger.Error("Error while inserting refresh token: " + err.Error())
+
+		return "", errs.NewInternalServerError("Unexpected database error")
+	}
+
+	return refreshToken, nil
+}
