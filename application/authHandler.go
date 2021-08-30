@@ -38,19 +38,15 @@ func (ah *AuthHandlers) Verify(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if urlParams["token"] != "" {
-		isAuthorized, appErr := ah.service.Verify(urlParams)
+		appErr := ah.service.Verify(urlParams)
 
 		if appErr != nil {
-			writeResponse(rw, appErr.Code, "application/json", appErr.Message)
+			writeResponse(rw, appErr.Code, "application/json", unauthorizedRequest(appErr.Message))
 		} else {
-			if isAuthorized {
-				writeResponse(rw, http.StatusOK, "application/json", authorizedRequest())
-			} else {
-				writeResponse(rw, http.StatusUnauthorized, "application/json", unauthorizedRequest())
-			}
+			writeResponse(rw, http.StatusOK, "application/json", authorizedRequest())
 		}
 	} else {
-		writeResponse(rw, http.StatusForbidden, "application/json", "Missing token")
+		writeResponse(rw, http.StatusForbidden, "application/json", unauthorizedRequest("Missing token"))
 	}
 }
 
@@ -60,9 +56,10 @@ func authorizedRequest() domain.AuthorizationRequest {
 	}
 }
 
-func unauthorizedRequest() domain.AuthorizationRequest {
+func unauthorizedRequest(msg string) domain.AuthorizationRequest {
 	return domain.AuthorizationRequest{
 		IsAuthorized: false,
+		Message:      msg,
 	}
 }
 

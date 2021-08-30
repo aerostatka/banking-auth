@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"github.com/aerostatka/banking-lib/logger"
 	"strings"
 )
 
@@ -13,7 +12,6 @@ func (perm *RolePermissions) IsAuthorizedFor(role string, route string) bool {
 	perms := perm.rolePermissions[role]
 
 	for _, r := range perms {
-		logger.Error(r)
 		if r == strings.TrimSpace(route) {
 			return true
 		}

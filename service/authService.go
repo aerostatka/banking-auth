@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"github.com/aerostatka/banking-auth/domain"
 	"github.com/aerostatka/banking-auth/dto"
 	"github.com/aerostatka/banking-lib/errs"
@@ -10,7 +11,7 @@ import (
 
 type AuthService interface {
 	Login(request dto.LoginRequest) (*dto.LoginResponse, *errs.AppError)
-	Verify(params map[string]string) (bool, *errs.AppError)
+	Verify(params map[string]string) *errs.AppError
 }
 
 type DefaultAuthService struct {
@@ -36,34 +37,33 @@ func (s DefaultAuthService) Login(req dto.LoginRequest) (*dto.LoginResponse, *er
 	}, nil
 }
 
-func (s DefaultAuthService) Verify(params map[string]string) (bool, *errs.AppError) {
+func (s DefaultAuthService) Verify(params map[string]string) *errs.AppError {
 	if jwtToken, err := jwtTokenFromString(params["token"]); err != nil {
 		logger.Error("Something went wrong: " + err.Error())
 
-		return false, errs.NewInternalServerError("Token is not valid")
+		return errs.NewInternalServerError("Token is not valid")
 	} else {
 		if jwtToken.Valid {
-			mapClaims := jwtToken.Claims.(jwt.MapClaims)
-
-			claims, appError := domain.BuildClaimsFromJwtMapClaims(mapClaims)
-
-			if appError != nil {
-				return false, appError
-			}
+			claims := jwtToken.Claims.(*domain.Claims)
 
 			if claims.IsUserRole() && !claims.IsRequestVerifiedWithTokenClaims(params) {
-				return false, nil
+				return errs.NewUnauthorizedError("Request is not verified with the token claims")
 			}
 
-			return s.permissions.IsAuthorizedFor(claims.Role, params["routeName"]), nil
+			isAuthorized := s.permissions.IsAuthorizedFor(claims.Role, params["routeName"])
+			if !isAuthorized {
+				return errs.NewUnauthorizedError(fmt.Sprintf("%s role is not authorized", claims.Role))
+			}
+
+			return nil
 		} else {
-			return false, errs.NewUnauthorizedError("Token is not valid")
+			return errs.NewUnauthorizedError("Token is not valid")
 		}
 	}
 }
 
 func jwtTokenFromString(tokenString string) (*jwt.Token, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &domain.Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(domain.HMAC_SAMPLE_SECRET), nil
 	})
 

@@ -7,5 +7,6 @@ type AuthRepository interface {
 }
 
 type AuthorizationRequest struct {
-	IsAuthorized bool `json:"isAuthorized"`
+	IsAuthorized bool   `json:"isAuthorized"`
+	Message      string `json:"message,omitempty"`
 }
